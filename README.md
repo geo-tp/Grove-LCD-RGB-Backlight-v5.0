@@ -4,8 +4,6 @@ This library is designed to control the **Grove-LCD RGB Backlight V5.0** display
 
 ## Installation
 
-To install the library using `mip` (MicroPython Package Manager), follow these steps:
-
 - With [mpremote](https://docs.micropython.org/en/latest/reference/mpremote.html)
 
 ```
