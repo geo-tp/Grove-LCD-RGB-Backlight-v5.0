@@ -82,13 +82,16 @@ class Screen(object):
         self.i2c.writeto_mem(self.address, 0x80, bytearray([]))
         self.i2c.writeto_mem(self.address, 0x80, command)
 
-
     def write_char(self, c):
         assert c >= 0 and c < 256
         c = bytearray([c])
         self.i2c.writeto_mem(self.address, 0x40, c)
 
     def write(self, text):
+
+        if isinstance(text, int):
+            text = str(text)
+
         for char in text:
             self.write_char(ord(char))
 
@@ -107,8 +110,7 @@ class Screen(object):
     def autoscroll(self, state):
         if state:
             self.disp_mode |= self.LCD_ENTRYSHIFTINCREMENT
-            print(self.disp_mode)
-            self.cmd(self.LCD_ENTRYMODESET  | 3)
+            self.cmd(self.LCD_ENTRYMODESET  | self.disp_mode)
         else:
             self.disp_mode &= ~self.LCD_ENTRYSHIFTINCREMENT
             self.cmd(self.LCD_ENTRYMODESET   | self.disp_mode)
@@ -150,9 +152,9 @@ class Backlight(object):
         self.i2c = i2c
         self.address = int(address)
 
-        # Backlight on
+        # Backlight blue on
         self.set_register(0x04, 0x15)
-
+        self.set_color(0, 0, 255)
 
     def blinkLed(self):
         self.set_register(0x04, 0x2a) # blink every seconds
@@ -179,10 +181,9 @@ class Display(object):
     screen = None
 
 
-    def __init__(self, lcd_addr=0x3e, rgb_addr=0x30):
-        print(int(lcd_addr), int(rgb_addr))
-        self.i2c = I2C(1, scl=Pin(7), sda=Pin(6), freq=400000)
-
+    def __init__(self, sda=0, scl=1, lcd_addr=0x3e, 
+                 rgb_addr=0x30, i2c_bus=1, freq=400000):
+        self.i2c = I2C(i2c_bus, scl=Pin(scl), sda=Pin(sda), freq=freq)
         self.backlight = Backlight(self.i2c, rgb_addr)
         self.screen =  Screen(self.i2c, lcd_addr)
 
@@ -216,7 +217,7 @@ class Display(object):
     def setCursor(self, col, row):
         self.screen.setCursor(col, row)
 
-def test_i2c_pins():
+def scan_i2c_pins(i2c_bus=1, freq=400000):
     valid_configurations = []
     for scl_pin in range(32):  # Test SCL pins up to 32
         for sda_pin in range(32):  # Test SDA pins up to 32
@@ -224,17 +225,21 @@ def test_i2c_pins():
                 continue  # Skip testing with the same pins for SCL and SDA
             try:
                 # Attempt to create an I2C bus with the current pin configuration
-                i2c = I2C(1, scl=Pin(scl_pin), sda=Pin(sda_pin), freq=400000)
+                i2c = I2C(i2c_bus, scl=Pin(scl_pin), sda=Pin(sda_pin), freq=freq)
                 devices = i2c.scan()
                 if devices:
-                    print(f"SCL Pin: {scl_pin}, SDA Pin: {sda_pin}, Devices Found: {devices}")
-                    valid_configurations.append((scl_pin, sda_pin, devices))
+                    print(f"SDA Pin: {sda_pin}, SCL Pin: {scl_pin}, Devices Found: {devices}")
+                    valid_configurations.append((sda_pin, scl_pin, devices))
                 else:
                     print(f"SCL Pin: {scl_pin}, SDA Pin: {sda_pin}, No devices found")
             except Exception as e:
                 print(f"Failed to initialize I2C with SCL Pin: {scl_pin}, SDA Pin: {sda_pin} - Error: {e}")
             finally:
-                time.sleep(0.1)  # Small delay to prevent too fast initialization
+                time.sleep_ms(20)  # Small delay to prevent too fast initialization
 
-    return valid_configurations
-
+    for i, conf in enumerate(valid_configurations):
+        addrs = [hex(addr) for addr in conf[2]]
+        print(f"### CONFIG {i} ###")
+        print(f"SDA PIN      : {conf[0]}")
+        print(f"SCL PIN      : {conf[1]}")
+        print(f"DEVICE ADDR  : {addrs}")
