@@ -39,7 +39,7 @@ display.clear()
 display.write("Hello World")
 ```
 
-### Backlight Color
+- ### Backlight Color
 ```
 import time
 from rgb_lcd_v5 import Display
